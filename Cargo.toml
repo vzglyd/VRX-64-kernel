@@ -1,0 +1,30 @@
+[package]
+name = "vzglyd-kernel"
+version = "0.1.0"
+edition = "2024"
+description = "Platform-agnostic kernel for VZGLYD display engine"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/vzglyd/vzglyd"
+rust-version = "1.85"
+
+# This crate is standalone and not part of the parent workspace
+[workspace]
+
+[dependencies]
+vzglyd-slide = { git = "https://github.com/vzglyd/vzglyd-slide" }
+postcard = { version = "1", features = ["alloc", "use-std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+naga = { version = "23", features = ["wgsl-in"] }
+thiserror = "1"
+log = "0.4"
+bytemuck = { version = "1", features = ["derive"] }
+glam = "0.29"
+
+# Optional: WASM loading (feature-gated for native testing)
+wasmtime = { version = "16", optional = true }
+wasmtime-wasi = { version = "16", optional = true }
+
+[features]
+default = []
+with-wasmtime = ["wasmtime", "wasmtime-wasi"]
