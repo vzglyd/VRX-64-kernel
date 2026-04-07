@@ -14,7 +14,7 @@ pub const MIN_DISPLAY_DURATION_SECONDS: u32 = 1;
 pub const MAX_DISPLAY_DURATION_SECONDS: u32 = 300;
 
 /// Slide manifest structure.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct SlideManifest {
     /// Slide name.
     pub name: Option<String>,
@@ -38,6 +38,8 @@ pub struct SlideManifest {
     pub requirements: Option<ManifestRequirements>,
     /// Sidecar configuration.
     pub sidecar: Option<ManifestSidecar>,
+    /// Parameter schema for runtime customisation.
+    pub params: Option<ManifestParamsSchema>,
 }
 
 /// Asset references in a manifest.
@@ -131,6 +133,75 @@ pub struct ManifestSidecar {
     pub wasi_preopens: Vec<String>,
 }
 
+/// Parameter schema declared in a manifest.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ManifestParamsSchema {
+    /// Parameter field definitions.
+    #[serde(default)]
+    pub fields: Vec<ManifestParamField>,
+}
+
+/// A single parameter field in the manifest params schema.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ManifestParamField {
+    /// Unique key used to identify the parameter.
+    pub key: String,
+    /// Value type.
+    #[serde(rename = "type")]
+    pub kind: ManifestParamType,
+    /// Whether the parameter must be supplied.
+    #[serde(default)]
+    pub required: bool,
+    /// Human-readable label for UI.
+    pub label: Option<String>,
+    /// Help text for UI.
+    pub help: Option<String>,
+    /// Default value (must match `kind`).
+    #[serde(default)]
+    pub default: Option<serde_json::Value>,
+    /// Allowed values (empty means unrestricted).
+    #[serde(default)]
+    pub options: Vec<ManifestParamOption>,
+}
+
+/// One entry in a parameter field's option list.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ManifestParamOption {
+    /// The option value (must match the field's `kind`).
+    pub value: serde_json::Value,
+    /// Human-readable label for UI.
+    pub label: Option<String>,
+}
+
+/// Supported parameter value types.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestParamType {
+    /// UTF-8 string value.
+    String,
+    /// Integer numeric value.
+    Integer,
+    /// Floating-point numeric value.
+    Number,
+    /// Boolean value.
+    Boolean,
+    /// Arbitrary JSON value.
+    Json,
+}
+
+impl std::fmt::Display for ManifestParamType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::String => "string",
+            Self::Integer => "integer",
+            Self::Number => "number",
+            Self::Boolean => "boolean",
+            Self::Json => "json",
+        };
+        write!(f, "{s}")
+    }
+}
+
 /// Manifest validation errors.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ManifestValidationError {
@@ -156,6 +227,9 @@ pub enum ManifestValidationError {
     /// Invalid sidecar preopen.
     #[error("invalid sidecar preopen '{0}'")]
     InvalidSidecarPreopen(String),
+    /// Invalid params schema.
+    #[error("{0}")]
+    InvalidParamsSchema(String),
 }
 
 impl SlideManifest {
@@ -226,6 +300,11 @@ impl SlideManifest {
             for preopen in &sidecar.wasi_preopens {
                 validate_sidecar_preopen(preopen)?;
             }
+        }
+
+        // Validate params schema
+        if let Some(params) = &self.params {
+            validate_params_schema(params)?;
         }
 
         Ok(())
@@ -303,6 +382,119 @@ fn validate_sidecar_preopen(spec: &str) -> Result<(), ManifestValidationError> {
         ));
     }
     Ok(())
+}
+
+/// Validates the params schema, checking for duplicate keys and type consistency.
+fn validate_params_schema(schema: &ManifestParamsSchema) -> Result<(), ManifestValidationError> {
+    let mut seen_keys = std::collections::BTreeSet::new();
+
+    for field in &schema.fields {
+        let key = field.key.trim();
+        if key.is_empty() {
+            return Err(ManifestValidationError::InvalidParamsSchema(
+                "manifest.params.fields[].key must be a non-empty string".to_string(),
+            ));
+        }
+
+        if !seen_keys.insert(key.to_string()) {
+            return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                "manifest.params.fields contains duplicate key '{key}'"
+            )));
+        }
+
+        if let Some(label) = &field.label {
+            if label.trim().is_empty() {
+                return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                    "manifest.params.fields['{key}'].label must not be blank"
+                )));
+            }
+        }
+
+        if let Some(help) = &field.help {
+            if help.trim().is_empty() {
+                return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                    "manifest.params.fields['{key}'].help must not be blank"
+                )));
+            }
+        }
+
+        if let Some(default) = &field.default {
+            validate_param_value(
+                default,
+                field.kind,
+                &format!("manifest.params.fields['{key}'].default"),
+            )?;
+        }
+
+        if matches!(field.kind, ManifestParamType::Json) && !field.options.is_empty() {
+            return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                "manifest.params.fields['{key}'].options are not supported for json fields"
+            )));
+        }
+
+        let mut seen_options = std::collections::BTreeSet::new();
+        for (index, option) in field.options.iter().enumerate() {
+            validate_param_value(
+                &option.value,
+                field.kind,
+                &format!("manifest.params.fields['{key}'].options[{index}].value"),
+            )?;
+
+            if let Some(label) = &option.label {
+                if label.trim().is_empty() {
+                    return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                        "manifest.params.fields['{key}'].options[{index}].label must not be blank"
+                    )));
+                }
+            }
+
+            let option_key =
+                serde_json::to_string(&option.value).map_err(|e| {
+                    ManifestValidationError::InvalidParamsSchema(format!(
+                        "manifest.params.fields['{key}'].options[{index}].value could not be serialized: {e}"
+                    ))
+                })?;
+            if !seen_options.insert(option_key) {
+                return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                    "manifest.params.fields['{key}'].options contains duplicate values"
+                )));
+            }
+        }
+
+        if let Some(default) = &field.default {
+            if !field.options.is_empty()
+                && !field.options.iter().any(|o| o.value == *default)
+            {
+                return Err(ManifestValidationError::InvalidParamsSchema(format!(
+                    "manifest.params.fields['{key}'].default must match one of the declared options"
+                )));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_param_value(
+    value: &serde_json::Value,
+    kind: ManifestParamType,
+    label: &str,
+) -> Result<(), ManifestValidationError> {
+    let is_valid = match kind {
+        ManifestParamType::String => matches!(value, serde_json::Value::String(_)),
+        ManifestParamType::Integer => value.as_i64().is_some() || value.as_u64().is_some(),
+        ManifestParamType::Number => value.as_f64().is_some(),
+        ManifestParamType::Boolean => matches!(value, serde_json::Value::Bool(_)),
+        ManifestParamType::Json => true,
+    };
+
+    if is_valid {
+        Ok(())
+    } else {
+        Err(ManifestValidationError::InvalidParamsSchema(format!(
+            "{label} does not match field type '{kind}'"
+        )))
+    }
 }
 
 /// Parses a transition kind string.
