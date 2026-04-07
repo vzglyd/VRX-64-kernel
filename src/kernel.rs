@@ -541,13 +541,13 @@ mod tests {
     struct TestHost;
 
     impl Host for TestHost {
-        fn request_data(&mut self, key: &str) -> Option<Vec<u8>> {
+        fn request_data(&mut self, _key: &str) -> Option<Vec<u8>> {
             None
         }
 
-        fn submit_render_commands(&mut self, cmds: &[RenderCommand]) {}
+        fn submit_render_commands(&mut self, _cmds: &[RenderCommand]) {}
 
-        fn log(&mut self, level: LogLevel, msg: &str) {}
+        fn log(&mut self, _level: LogLevel, _msg: &str) {}
 
         fn now(&self) -> f32 {
             0.0

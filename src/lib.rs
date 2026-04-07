@@ -88,9 +88,8 @@ pub mod glb;
 pub mod kernel;
 pub mod lifecycle;
 pub mod schedule;
+pub mod manifest;
 pub mod shader;
-pub mod shared_mem;
-pub mod slide;
 pub mod trace;
 pub mod transition;
 pub mod types;
@@ -100,13 +99,6 @@ pub use types::{
     BufferHandle, BufferUsage, DataRequest, EngineInput, EngineOutput, EngineState, Host,
     InputEvent, LogLevel, PipelineKind, RenderCommand, SamplerHandle, TextureFormat,
     TextureHandle,
-};
-
-// Re-export shared memory types
-pub use shared_mem::{
-    CameraKeyframeMem, CameraPathMem, DrawSpecMem, DynamicMeshMem, LimitsMem, RuntimeMeshHeader,
-    RuntimeMeshSetHeader, RuntimeOverlayHeader, SharedMemoryBuilder, SharedMemoryLayout,
-    SlideSpecHeader, StaticMeshMem, TextureDescMem, WIRE_VERSION,
 };
 
 // Re-export main engine types

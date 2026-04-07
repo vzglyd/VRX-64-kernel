@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::slide::manifest::parse_transition_kind;
+use crate::manifest::parse_transition_kind;
 use crate::transition::TransitionKind;
 
 /// Filename for playlist configuration.
