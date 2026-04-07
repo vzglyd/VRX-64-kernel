@@ -77,6 +77,7 @@ struct VzglydUniforms {
     fog_color: vec4<f32>,
     fog_start: f32,
     fog_end: f32,
+    clock_seconds: f32,
     _pad: f32,
     ambient_light: vec4<f32>,
     main_light_dir: vec4<f32>,
