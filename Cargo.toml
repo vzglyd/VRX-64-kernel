@@ -4,17 +4,14 @@ version = "0.1.0"
 edition = "2024"
 description = "Platform-agnostic kernel for VZGLYD display engine"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/vzglyd/vzglyd"
+repository = "https://github.com/vzglyd/VRX-64-kernel"
 rust-version = "1.85"
 
 [lib]
 name = "vzglyd_kernel"
 
-# This crate is standalone and not part of the parent workspace
-[workspace]
-
 [dependencies]
-vzglyd_slide = { package = "VRX-64-slide", path = "../VRX-64-slide" }
+vzglyd_slide = { package = "VRX-64-slide", git = "https://github.com/vzglyd/VRX-64-slide", branch = "main" }
 postcard = { version = "1", features = ["alloc", "use-std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
