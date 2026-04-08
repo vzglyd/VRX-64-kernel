@@ -11,13 +11,35 @@ use crate::transition::TransitionKind;
 pub const PLAYLIST_FILENAME: &str = "playlist.json";
 
 /// Top-level structure for `playlist.json`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Playlist {
     /// Default display settings applied to any entry that does not specify its own.
     #[serde(default)]
     pub defaults: PlaylistDefaults,
     /// Ordered list of slides to display.
     pub slides: Vec<PlaylistEntry>,
+    /// Output scale factor applied when blitting slides to the display surface.
+    ///
+    /// `1.0` (default) fills the letterbox rect exactly.
+    /// Values below `1.0` shrink the output and add black bars — useful on CRT
+    /// displays where the bezel crops the outermost pixels (overscan).
+    /// Values above `1.0` zoom in, cropping the edges.
+    #[serde(default = "default_display_scale")]
+    pub display_scale: f32,
+}
+
+fn default_display_scale() -> f32 {
+    1.0
+}
+
+impl Default for Playlist {
+    fn default() -> Self {
+        Self {
+            defaults: PlaylistDefaults::default(),
+            slides: Vec::new(),
+            display_scale: 1.0,
+        }
+    }
 }
 
 /// Fallback display settings for entries that do not override them.
@@ -196,6 +218,7 @@ mod tests {
     fn build_schedule_filters_disabled() {
         let playlist = Playlist {
             defaults: PlaylistDefaults::default(),
+            display_scale: 1.0,
             slides: vec![
                 PlaylistEntry {
                     path: "a.vzglyd".into(),
@@ -238,6 +261,7 @@ mod tests {
                 transition_in: Some("crossfade".into()),
                 transition_out: Some("wipe_left".into()),
             },
+            display_scale: 1.0,
             slides: vec![PlaylistEntry {
                 path: "clock.vzglyd".into(),
                 enabled: Some(true),
