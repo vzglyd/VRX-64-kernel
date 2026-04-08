@@ -19,6 +19,7 @@ naga = { version = "23", features = ["wgsl-in"] }
 thiserror = "1"
 log = "0.4"
 bytemuck = { version = "1", features = ["derive"] }
+font8x8 = "0.3"
 glam = "0.29"
 gltf = { version = "1", default-features = false, features = ["KHR_lights_punctual", "extras", "names", "utils"] }
 

@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "VRX-64-slide",
  "bytemuck",
+ "font8x8",
  "glam",
  "gltf",
  "log",
@@ -23,6 +24,7 @@ dependencies = [
 [[package]]
 name = "VRX-64-slide"
 version = "0.1.0"
+source = "git+https://github.com/vzglyd/VRX-64-slide?branch=main#1b13d95e933f84b763a7c62abe708268b1329c69"
 dependencies = [
  "bytemuck",
  "serde",
@@ -640,6 +642,12 @@ name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+
+[[package]]
+name = "font8x8"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "875488b8711a968268c7cf5d139578713097ca4635a76044e8fe8eedf831d07e"
 
 [[package]]
 name = "form_urlencoded"

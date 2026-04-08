@@ -86,6 +86,7 @@
 
 pub mod glb;
 pub mod kernel;
+pub mod overlay;
 pub mod lifecycle;
 pub mod schedule;
 pub mod manifest;
@@ -104,6 +105,13 @@ pub use types::{
 // Re-export main engine types
 pub use kernel::{Engine, EngineConfig, FrameRenderState, SlideEntry, SlideManifestMetadata};
 pub use transition::TransitionKind;
+
+// Re-export overlay types
+pub use overlay::{
+    BORDER_PX, COLOR_BORDER, COLOR_CLOCK, COLOR_FOOTER_BG, COLOR_TITLE, FOOTER_PX, GLYPH_SIZE,
+    OverlayVertex, TEXT_MARGIN_PX, TEXT_SCALE, build_font_atlas_pixels, build_hud_geometry,
+    normalize_text,
+};
 
 // Re-export GLB types
 pub use glb::{
