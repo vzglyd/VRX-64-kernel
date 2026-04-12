@@ -445,6 +445,106 @@ fn push_text(
     }
 }
 
+// ── Info slide geometry ──────────────────────────────────────────────────────
+
+/// Build overlay geometry for the information slide.
+///
+/// Renders centered text lines on a semi-transparent dark background panel.
+///
+/// # Arguments
+/// * `glyph_map` — font atlas glyph positions
+/// * `sw`, `sh` — surface width/height in pixels
+/// * `lines` — text lines to display (first line is the title, rest are details)
+pub fn build_info_geometry(
+    glyph_map: &HashMap<char, [f32; 4]>,
+    sw: u32,
+    sh: u32,
+    lines: &[String],
+) -> (Vec<OverlayVertex>, Vec<u16>) {
+    let mut verts: Vec<OverlayVertex> = Vec::new();
+    let mut idxs: Vec<u16> = Vec::new();
+
+    let sw_f = sw as f32;
+    let sh_f = sh as f32;
+    let advance = GLYPH_SIZE * TEXT_SCALE;
+
+    // Dark panel background — centered, with margins.
+    let panel_margin = 40.0;
+    let panel_x0 = panel_margin;
+    let panel_y0 = sh_f * 0.25;
+    let panel_x1 = sw_f - panel_margin;
+    let panel_y1 = sh_f * 0.78;
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        panel_x0,
+        panel_y0,
+        panel_x1,
+        panel_y1,
+        sw_f,
+        sh_f,
+        [0.06, 0.06, 0.10, 0.92],
+    );
+
+    // Subtle panel border.
+    let border_w = 2.0;
+    push_solid(&mut verts, &mut idxs, panel_x0, panel_y0, panel_x1, panel_y0 + border_w, sw_f, sh_f, COLOR_BORDER);
+    push_solid(&mut verts, &mut idxs, panel_x0, panel_y1 - border_w, panel_x1, panel_y1, sw_f, sh_f, COLOR_BORDER);
+    push_solid(&mut verts, &mut idxs, panel_x0, panel_y0, panel_x0 + border_w, panel_y1, sw_f, sh_f, COLOR_BORDER);
+    push_solid(&mut verts, &mut idxs, panel_x1 - border_w, panel_y0, panel_x1, panel_y1, sw_f, sh_f, COLOR_BORDER);
+
+    // "VZGLYD" header label.
+    let header_y = panel_y0 + 24.0;
+    push_text(
+        &mut verts, &mut idxs, glyph_map, "VZGLYD",
+        panel_x0 + 16.0, header_y, advance, sw_f, sh_f,
+        [0.30, 0.75, 0.92, 0.70],
+    );
+
+    // Title line — larger, bold, centered.
+    let title_y = panel_y0 + 56.0;
+    if let Some(title) = lines.first() {
+        let title_text = normalize_text(title);
+        let char_count = title_text.chars().count();
+        let title_width = char_count as f32 * advance * 1.5;
+        let title_x = ((sw_f - title_width) / 2.0).max(panel_x0 + 16.0);
+        push_text_scaled(
+            &mut verts, &mut idxs, glyph_map, &title_text,
+            title_x, title_y, advance * 1.5, sw_f, sh_f,
+            [0.95, 0.95, 1.0, 1.0],
+        );
+    }
+
+    // Detail lines — smaller, centered below the title.
+    let detail_start_y = title_y + advance * 2.5;
+    let line_spacing = advance * 1.8;
+    for (i, line) in lines.iter().skip(1).enumerate() {
+        let detail_text = normalize_text(line);
+        let char_count = detail_text.chars().count();
+        let detail_width = char_count as f32 * advance;
+        let detail_x = ((sw_f - detail_width) / 2.0).max(panel_x0 + 16.0);
+        let y = detail_start_y + i as f32 * line_spacing;
+        if y > panel_y1 - advance {
+            break; // Don't overflow the panel.
+        }
+        push_text(
+            &mut verts, &mut idxs, glyph_map, &detail_text,
+            detail_x, y, advance, sw_f, sh_f,
+            [0.70, 0.80, 0.92, 0.90],
+        );
+    }
+
+    // "Waiting for recovery..." footer at the bottom of the panel.
+    let footer_y = panel_y1 - advance * 1.5;
+    push_text(
+        &mut verts, &mut idxs, glyph_map, "waiting for recovery...",
+        panel_x0 + 16.0, footer_y, advance * 0.8, sw_f, sh_f,
+        [0.40, 0.55, 0.70, 0.60],
+    );
+
+    (verts, idxs)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
