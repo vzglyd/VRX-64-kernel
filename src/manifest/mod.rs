@@ -45,6 +45,9 @@ pub struct SlideManifest {
 /// Asset references in a manifest.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct ManifestAssets {
+    /// Cassette artwork used by management tools and bundle libraries.
+    #[serde(default)]
+    pub art: Option<ManifestCassetteArt>,
     /// Texture assets.
     #[serde(default)]
     pub textures: Vec<AssetRef>,
@@ -57,6 +60,27 @@ pub struct ManifestAssets {
     /// Sound assets (MP3, WAV, Ogg, FLAC).
     #[serde(default)]
     pub sounds: Vec<SoundAssetRef>,
+}
+
+/// Required cassette artwork for a bundle.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ManifestCassetteArt {
+    /// J-card cassette cover image.
+    pub j_card: ArtAssetRef,
+    /// Tape label image for side A.
+    pub side_a_label: ArtAssetRef,
+    /// Tape label image for side B.
+    pub side_b_label: ArtAssetRef,
+}
+
+/// Reference to a bundle artwork image.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ArtAssetRef {
+    /// Path to the artwork image file.
+    pub path: String,
+    /// Human-readable label for UI.
+    #[serde(default)]
+    pub label: Option<String>,
 }
 
 /// Reference to a sound asset.
@@ -249,6 +273,9 @@ pub enum ManifestValidationError {
     /// Invalid params schema.
     #[error("{0}")]
     InvalidParamsSchema(String),
+    /// Invalid or missing cassette artwork.
+    #[error("{0}")]
+    InvalidCassetteArt(String),
 }
 
 impl SlideManifest {
@@ -329,6 +356,9 @@ impl SlideManifest {
             validate_params_schema(params)?;
         }
 
+        // Validate required cassette art
+        validate_cassette_art(self)?;
+
         Ok(())
     }
 
@@ -366,6 +396,41 @@ impl SlideManifest {
             None => assets.scenes.first(),
         }
     }
+}
+
+fn validate_cassette_art(manifest: &SlideManifest) -> Result<(), ManifestValidationError> {
+    let Some(assets) = manifest.assets.as_ref() else {
+        return Err(ManifestValidationError::InvalidCassetteArt(
+            "manifest.assets.art is required".to_string(),
+        ));
+    };
+    let Some(art) = assets.art.as_ref() else {
+        return Err(ManifestValidationError::InvalidCassetteArt(
+            "manifest.assets.art is required".to_string(),
+        ));
+    };
+
+    validate_art_asset_ref("manifest.assets.art.j_card", &art.j_card)?;
+    validate_art_asset_ref("manifest.assets.art.side_a_label", &art.side_a_label)?;
+    validate_art_asset_ref("manifest.assets.art.side_b_label", &art.side_b_label)?;
+    Ok(())
+}
+
+fn validate_art_asset_ref(label: &str, asset: &ArtAssetRef) -> Result<(), ManifestValidationError> {
+    if asset.path.trim().is_empty() {
+        return Err(ManifestValidationError::InvalidCassetteArt(format!(
+            "{label}.path must be a non-empty string"
+        )));
+    }
+    validate_package_relative_path(&asset.path)?;
+    if let Some(label_text) = &asset.label {
+        if label_text.trim().is_empty() {
+            return Err(ManifestValidationError::InvalidCassetteArt(format!(
+                "{label}.label must not be blank"
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Validates that a path is relative and doesn't escape the package directory.
@@ -547,6 +612,23 @@ mod tests {
 
     const ENGINE_ABI: u32 = 1;
 
+    fn required_art() -> ManifestCassetteArt {
+        ManifestCassetteArt {
+            j_card: ArtAssetRef {
+                path: "art/j-card.png".into(),
+                label: None,
+            },
+            side_a_label: ArtAssetRef {
+                path: "art/side-a.png".into(),
+                label: None,
+            },
+            side_b_label: ArtAssetRef {
+                path: "art/side-b.png".into(),
+                label: None,
+            },
+        }
+    }
+
     #[test]
     fn minimal_manifest_parses() {
         let json = br#"{"name":"Test"}"#;
@@ -600,6 +682,7 @@ mod tests {
     fn asset_path_traversal_is_rejected() {
         let manifest = SlideManifest {
             assets: Some(ManifestAssets {
+                art: Some(required_art()),
                 textures: vec![AssetRef {
                     path: "../secret.png".into(),
                     usage: Some("material".into()),
@@ -621,6 +704,54 @@ mod tests {
         assert_eq!(
             error,
             ManifestValidationError::PathEscapesPackage("../secret.png".into())
+        );
+    }
+
+    #[test]
+    fn cassette_art_is_required() {
+        let manifest = SlideManifest {
+            assets: Some(ManifestAssets {
+                art: None,
+                textures: vec![],
+                meshes: vec![],
+                scenes: vec![],
+                sounds: vec![],
+            }),
+            ..Default::default()
+        };
+
+        let error = manifest
+            .validate(ENGINE_ABI)
+            .expect_err("missing cassette art should fail");
+
+        assert_eq!(
+            error,
+            ManifestValidationError::InvalidCassetteArt("manifest.assets.art is required".into())
+        );
+    }
+
+    #[test]
+    fn cassette_art_paths_are_validated() {
+        let mut art = required_art();
+        art.side_b_label.path = "../side-b.png".into();
+        let manifest = SlideManifest {
+            assets: Some(ManifestAssets {
+                art: Some(art),
+                textures: vec![],
+                meshes: vec![],
+                scenes: vec![],
+                sounds: vec![],
+            }),
+            ..Default::default()
+        };
+
+        let error = manifest
+            .validate(ENGINE_ABI)
+            .expect_err("unsafe cassette art path should fail");
+
+        assert_eq!(
+            error,
+            ManifestValidationError::PathEscapesPackage("../side-b.png".into())
         );
     }
 

@@ -111,9 +111,10 @@ pub use transition::TransitionKind;
 
 // Re-export overlay types
 pub use overlay::{
-    BORDER_PX, COLOR_BORDER, COLOR_CLOCK, COLOR_FOOTER_BG, COLOR_TITLE, FOOTER_PX, GLYPH_SIZE,
-    OverlayVertex, TEXT_MARGIN_PX, TEXT_SCALE, build_font_atlas_pixels, build_hud_geometry,
-    build_screensaver_geometry, normalize_text,
+    BORDER_PX, COLOR_BORDER, COLOR_CLOCK, COLOR_FOOTER_BG, COLOR_TITLE, COLOR_UPDATED, FOOTER_PX,
+    GLYPH_SIZE, OverlayVertex, TEXT_MARGIN_PX, TEXT_SCALE, build_font_atlas_pixels,
+    build_hud_geometry, build_hud_geometry_with_update, build_screensaver_geometry,
+    normalize_text,
 };
 
 // Re-export schedule types

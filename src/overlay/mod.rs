@@ -68,6 +68,10 @@ pub const COLOR_FOOTER_BG: [f32; 4] = [0.02, 0.05, 0.12, 0.88];
 pub const COLOR_TITLE: [f32; 4] = [0.88, 0.92, 1.0, 1.0];
 /// Wall-clock text colour.
 pub const COLOR_CLOCK: [f32; 4] = [0.60, 0.82, 0.95, 1.0];
+/// Data refresh time text colour.
+pub const COLOR_UPDATED: [f32; 4] = [0.78, 0.98, 0.88, 1.0];
+
+const UPDATED_TEXT_SCALE: f32 = 1.5;
 
 // ── Font atlas ────────────────────────────────────────────────────────────────
 
@@ -117,7 +121,8 @@ pub fn build_font_atlas_pixels() -> (Vec<u8>, u32, u32, HashMap<char, [f32; 4]>)
 /// 1. Footer background
 /// 2. Slide title text (left-aligned, may be `None`)
 /// 3. Clock text (right-aligned)
-/// 4. Border strips (topmost layer)
+/// 4. Optional data update time (centered)
+/// 5. Border strips (topmost layer)
 ///
 /// # Parameters
 /// - `glyph_map`: from [`build_font_atlas_pixels`]
@@ -130,6 +135,18 @@ pub fn build_hud_geometry(
     sh: u32,
     slide_name: Option<&str>,
     clock_str: &str,
+) -> (Vec<OverlayVertex>, Vec<u16>) {
+    build_hud_geometry_with_update(glyph_map, sw, sh, slide_name, clock_str, None)
+}
+
+/// Builds HUD geometry with an optional data update time centered in the footer.
+pub fn build_hud_geometry_with_update(
+    glyph_map: &HashMap<char, [f32; 4]>,
+    sw: u32,
+    sh: u32,
+    slide_name: Option<&str>,
+    clock_str: &str,
+    updated_str: Option<&str>,
 ) -> (Vec<OverlayVertex>, Vec<u16>) {
     let mut verts: Vec<OverlayVertex> = Vec::new();
     let mut idxs: Vec<u16> = Vec::new();
@@ -155,7 +172,10 @@ pub fn build_hud_geometry(
     // 2. Slide title (left-aligned, capped to avoid overflow into clock area)
     if let Some(name) = slide_name {
         let name = normalize_text(name);
-        let max_title_chars = ((sw * 0.5 - TEXT_MARGIN_PX * 2.0) / advance).floor() as usize;
+        let title_fraction = if updated_str.is_some() { 0.33 } else { 0.5 };
+        let max_title_chars = ((sw * title_fraction - TEXT_MARGIN_PX * 2.0) / advance)
+            .floor()
+            .max(0.0) as usize;
         let truncated: String = name.chars().take(max_title_chars).collect();
         push_text(
             &mut verts,
@@ -187,7 +207,32 @@ pub fn build_hud_geometry(
         COLOR_CLOCK,
     );
 
-    // 4. Border strips (drawn last — on top of everything)
+    // 4. Last data update time (centered)
+    if let Some(updated_str) = updated_str {
+        let updated_str = normalize_text(updated_str);
+        let updated_advance = GLYPH_SIZE * UPDATED_TEXT_SCALE;
+        let max_updated_chars = ((sw * 0.44) / updated_advance).floor() as usize;
+        let truncated: String = updated_str.chars().take(max_updated_chars).collect();
+        if !truncated.is_empty() {
+            let updated_width = truncated.chars().count() as f32 * updated_advance;
+            let updated_x = (sw - updated_width) * 0.5;
+            let updated_y = sh - FOOTER_PX + (FOOTER_PX - updated_advance) * 0.5;
+            push_text(
+                &mut verts,
+                &mut idxs,
+                glyph_map,
+                &truncated,
+                updated_x,
+                updated_y,
+                updated_advance,
+                sw,
+                sh,
+                COLOR_UPDATED,
+            );
+        }
+    }
+
+    // 5. Border strips (drawn last — on top of everything)
     push_solid(&mut verts, &mut idxs, 0.0, 0.0, sw, BORDER_PX, sw, sh, COLOR_BORDER);
     push_solid(&mut verts, &mut idxs, 0.0, sh - BORDER_PX, sw, sh, sw, sh, COLOR_BORDER);
     push_solid(&mut verts, &mut idxs, 0.0, 0.0, BORDER_PX, sh, sw, sh, COLOR_BORDER);
@@ -437,6 +482,25 @@ mod tests {
         let (verts, idxs) = build_hud_geometry(&m, 640, 480, Some("Test Slide"), "12:34:56");
         assert!(!verts.is_empty());
         assert!(!idxs.is_empty());
+    }
+
+    #[test]
+    fn build_hud_geometry_with_update_adds_center_footer_text() {
+        let m = test_glyph_map();
+        let (base_verts, base_idxs) =
+            build_hud_geometry(&m, 640, 480, Some("Test Slide"), "12:34:56");
+        let (updated_verts, updated_idxs) = build_hud_geometry_with_update(
+            &m,
+            640,
+            480,
+            Some("Test Slide"),
+            "12:34:56",
+            Some("UPDATED 12:34:56"),
+        );
+
+        assert!(updated_verts.len() > base_verts.len());
+        assert!(updated_idxs.len() > base_idxs.len());
+        assert!(updated_verts.iter().any(|v| v.color == COLOR_UPDATED));
     }
 
     #[test]
