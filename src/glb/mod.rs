@@ -45,7 +45,7 @@ pub struct ImportedMesh {
     /// Vertices of the mesh.
     pub vertices: Vec<ImportedVertex>,
     /// Indices for the mesh.
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
 }
 
 /// Extra metadata imported from GLB extras.
@@ -113,7 +113,7 @@ pub struct ImportedSceneMeshNode {
     /// Vertices of the mesh.
     pub vertices: Vec<ImportedVertex>,
     /// Indices of the mesh.
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
     /// Material of the mesh.
     pub material: ImportedSceneMaterial,
     /// Extra metadata.
@@ -422,9 +422,9 @@ fn flatten_scene_mesh_nodes(scene: &ImportedScene, path: &Path) -> Result<Import
     };
     for mesh_node in &scene.mesh_nodes {
         let vertex_offset = imported.vertices.len();
-        if vertex_offset + mesh_node.vertices.len() > u16::MAX as usize + 1 {
+        if vertex_offset + mesh_node.vertices.len() > u32::MAX as usize {
             return Err(GlbError::FormatError(format!(
-                "GLB '{}' exceeds the engine's u16 static mesh index limit",
+                "GLB '{}' exceeds the engine's u32 vertex limit",
                 path.display()
             )));
         }
@@ -437,13 +437,7 @@ fn flatten_scene_mesh_nodes(scene: &ImportedScene, path: &Path) -> Result<Import
                     path.display()
                 ))
             })?;
-            let final_index = u16::try_from(final_index).map_err(|_| {
-                GlbError::FormatError(format!(
-                    "GLB '{}' produced an index outside the engine's u16 range",
-                    path.display()
-                ))
-            })?;
-            imported.indices.push(final_index);
+            imported.indices.push(final_index as u32);
         }
     }
 
@@ -654,9 +648,9 @@ fn import_scene_primitive(
         .read_indices()
         .map(|indices| indices.into_u32().collect())
         .unwrap_or_else(|| (0..positions.len() as u32).collect());
-    if positions.len() > u16::MAX as usize + 1 {
+    if positions.len() > u32::MAX as usize {
         return Err(GlbError::FormatError(format!(
-            "GLB '{}' exceeds the engine's u16 static mesh index limit",
+            "GLB '{}' exceeds the engine's u32 vertex limit",
             path.display()
         )));
     }
@@ -702,13 +696,7 @@ fn import_scene_primitive(
     }
 
     for index in primitive_indices {
-        let final_index = u16::try_from(index).map_err(|_| {
-            GlbError::FormatError(format!(
-                "GLB '{}' produced an index outside the engine's u16 range",
-                path.display()
-            ))
-        })?;
-        imported.indices.push(final_index);
+        imported.indices.push(index);
     }
 
     fill_missing_normals(&mut imported);
