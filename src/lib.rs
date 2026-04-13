@@ -85,6 +85,7 @@
 #![warn(rustdoc::missing_crate_level_docs)]
 
 pub mod glb;
+pub mod info;
 pub mod kernel;
 pub mod management;
 pub mod overlay;
@@ -111,13 +112,17 @@ pub use transition::TransitionKind;
 
 // Re-export overlay types
 pub use overlay::{
-    BORDER_PX, COLOR_BORDER, COLOR_CLOCK, COLOR_FOOTER_BG, COLOR_TITLE, FOOTER_PX, GLYPH_SIZE,
-    OverlayVertex, TEXT_MARGIN_PX, TEXT_SCALE, build_font_atlas_pixels, build_hud_geometry,
-    build_screensaver_geometry, normalize_text,
+    BORDER_PX, COLOR_BORDER, COLOR_CLOCK, COLOR_FOOTER_BG, COLOR_TITLE, COLOR_UPDATED, FOOTER_PX,
+    GLYPH_SIZE, OverlayVertex, TEXT_MARGIN_PX, TEXT_SCALE, build_font_atlas_pixels,
+    build_hud_geometry, build_hud_geometry_with_update, build_info_geometry, build_screensaver_geometry,
+    normalize_text,
 };
 
 // Re-export schedule types
 pub use schedule::ScreensaverConfig;
+
+// Re-export info slide types
+pub use info::{InfoReason, InfoState, empty_playlist_info, invalid_playlist_info, missing_playlist_info};
 
 // Re-export management types
 pub use management::{

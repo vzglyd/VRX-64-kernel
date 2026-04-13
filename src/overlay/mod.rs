@@ -68,6 +68,10 @@ pub const COLOR_FOOTER_BG: [f32; 4] = [0.02, 0.05, 0.12, 0.88];
 pub const COLOR_TITLE: [f32; 4] = [0.88, 0.92, 1.0, 1.0];
 /// Wall-clock text colour.
 pub const COLOR_CLOCK: [f32; 4] = [0.60, 0.82, 0.95, 1.0];
+/// Data refresh time text colour.
+pub const COLOR_UPDATED: [f32; 4] = [0.78, 0.98, 0.88, 1.0];
+
+const UPDATED_TEXT_SCALE: f32 = 1.5;
 
 // ── Font atlas ────────────────────────────────────────────────────────────────
 
@@ -117,7 +121,8 @@ pub fn build_font_atlas_pixels() -> (Vec<u8>, u32, u32, HashMap<char, [f32; 4]>)
 /// 1. Footer background
 /// 2. Slide title text (left-aligned, may be `None`)
 /// 3. Clock text (right-aligned)
-/// 4. Border strips (topmost layer)
+/// 4. Optional data update time (centered)
+/// 5. Border strips (topmost layer)
 ///
 /// # Parameters
 /// - `glyph_map`: from [`build_font_atlas_pixels`]
@@ -130,6 +135,18 @@ pub fn build_hud_geometry(
     sh: u32,
     slide_name: Option<&str>,
     clock_str: &str,
+) -> (Vec<OverlayVertex>, Vec<u16>) {
+    build_hud_geometry_with_update(glyph_map, sw, sh, slide_name, clock_str, None)
+}
+
+/// Builds HUD geometry with an optional data update time centered in the footer.
+pub fn build_hud_geometry_with_update(
+    glyph_map: &HashMap<char, [f32; 4]>,
+    sw: u32,
+    sh: u32,
+    slide_name: Option<&str>,
+    clock_str: &str,
+    updated_str: Option<&str>,
 ) -> (Vec<OverlayVertex>, Vec<u16>) {
     let mut verts: Vec<OverlayVertex> = Vec::new();
     let mut idxs: Vec<u16> = Vec::new();
@@ -155,7 +172,10 @@ pub fn build_hud_geometry(
     // 2. Slide title (left-aligned, capped to avoid overflow into clock area)
     if let Some(name) = slide_name {
         let name = normalize_text(name);
-        let max_title_chars = ((sw * 0.5 - TEXT_MARGIN_PX * 2.0) / advance).floor() as usize;
+        let title_fraction = if updated_str.is_some() { 0.33 } else { 0.5 };
+        let max_title_chars = ((sw * title_fraction - TEXT_MARGIN_PX * 2.0) / advance)
+            .floor()
+            .max(0.0) as usize;
         let truncated: String = name.chars().take(max_title_chars).collect();
         push_text(
             &mut verts,
@@ -187,7 +207,32 @@ pub fn build_hud_geometry(
         COLOR_CLOCK,
     );
 
-    // 4. Border strips (drawn last — on top of everything)
+    // 4. Last data update time (centered)
+    if let Some(updated_str) = updated_str {
+        let updated_str = normalize_text(updated_str);
+        let updated_advance = GLYPH_SIZE * UPDATED_TEXT_SCALE;
+        let max_updated_chars = ((sw * 0.44) / updated_advance).floor() as usize;
+        let truncated: String = updated_str.chars().take(max_updated_chars).collect();
+        if !truncated.is_empty() {
+            let updated_width = truncated.chars().count() as f32 * updated_advance;
+            let updated_x = (sw - updated_width) * 0.5;
+            let updated_y = sh - FOOTER_PX + (FOOTER_PX - updated_advance) * 0.5;
+            push_text(
+                &mut verts,
+                &mut idxs,
+                glyph_map,
+                &truncated,
+                updated_x,
+                updated_y,
+                updated_advance,
+                sw,
+                sh,
+                COLOR_UPDATED,
+            );
+        }
+    }
+
+    // 5. Border strips (drawn last — on top of everything)
     push_solid(&mut verts, &mut idxs, 0.0, 0.0, sw, BORDER_PX, sw, sh, COLOR_BORDER);
     push_solid(&mut verts, &mut idxs, 0.0, sh - BORDER_PX, sw, sh, sw, sh, COLOR_BORDER);
     push_solid(&mut verts, &mut idxs, 0.0, 0.0, BORDER_PX, sh, sw, sh, COLOR_BORDER);
@@ -400,6 +445,106 @@ fn push_text(
     }
 }
 
+// ── Info slide geometry ──────────────────────────────────────────────────────
+
+/// Build overlay geometry for the information slide.
+///
+/// Renders centered text lines on a semi-transparent dark background panel.
+///
+/// # Arguments
+/// * `glyph_map` — font atlas glyph positions
+/// * `sw`, `sh` — surface width/height in pixels
+/// * `lines` — text lines to display (first line is the title, rest are details)
+pub fn build_info_geometry(
+    glyph_map: &HashMap<char, [f32; 4]>,
+    sw: u32,
+    sh: u32,
+    lines: &[String],
+) -> (Vec<OverlayVertex>, Vec<u16>) {
+    let mut verts: Vec<OverlayVertex> = Vec::new();
+    let mut idxs: Vec<u16> = Vec::new();
+
+    let sw_f = sw as f32;
+    let sh_f = sh as f32;
+    let advance = GLYPH_SIZE * TEXT_SCALE;
+
+    // Dark panel background — centered, with margins.
+    let panel_margin = 40.0;
+    let panel_x0 = panel_margin;
+    let panel_y0 = sh_f * 0.25;
+    let panel_x1 = sw_f - panel_margin;
+    let panel_y1 = sh_f * 0.78;
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        panel_x0,
+        panel_y0,
+        panel_x1,
+        panel_y1,
+        sw_f,
+        sh_f,
+        [0.06, 0.06, 0.10, 0.92],
+    );
+
+    // Subtle panel border.
+    let border_w = 2.0;
+    push_solid(&mut verts, &mut idxs, panel_x0, panel_y0, panel_x1, panel_y0 + border_w, sw_f, sh_f, COLOR_BORDER);
+    push_solid(&mut verts, &mut idxs, panel_x0, panel_y1 - border_w, panel_x1, panel_y1, sw_f, sh_f, COLOR_BORDER);
+    push_solid(&mut verts, &mut idxs, panel_x0, panel_y0, panel_x0 + border_w, panel_y1, sw_f, sh_f, COLOR_BORDER);
+    push_solid(&mut verts, &mut idxs, panel_x1 - border_w, panel_y0, panel_x1, panel_y1, sw_f, sh_f, COLOR_BORDER);
+
+    // "VZGLYD" header label.
+    let header_y = panel_y0 + 24.0;
+    push_text(
+        &mut verts, &mut idxs, glyph_map, "VZGLYD",
+        panel_x0 + 16.0, header_y, advance, sw_f, sh_f,
+        [0.30, 0.75, 0.92, 0.70],
+    );
+
+    // Title line — larger, bold, centered.
+    let title_y = panel_y0 + 56.0;
+    if let Some(title) = lines.first() {
+        let title_text = normalize_text(title);
+        let char_count = title_text.chars().count();
+        let title_width = char_count as f32 * advance * 1.5;
+        let title_x = ((sw_f - title_width) / 2.0).max(panel_x0 + 16.0);
+        push_text_scaled(
+            &mut verts, &mut idxs, glyph_map, &title_text,
+            title_x, title_y, advance * 1.5, sw_f, sh_f,
+            [0.95, 0.95, 1.0, 1.0],
+        );
+    }
+
+    // Detail lines — smaller, centered below the title.
+    let detail_start_y = title_y + advance * 2.5;
+    let line_spacing = advance * 1.8;
+    for (i, line) in lines.iter().skip(1).enumerate() {
+        let detail_text = normalize_text(line);
+        let char_count = detail_text.chars().count();
+        let detail_width = char_count as f32 * advance;
+        let detail_x = ((sw_f - detail_width) / 2.0).max(panel_x0 + 16.0);
+        let y = detail_start_y + i as f32 * line_spacing;
+        if y > panel_y1 - advance {
+            break; // Don't overflow the panel.
+        }
+        push_text(
+            &mut verts, &mut idxs, glyph_map, &detail_text,
+            detail_x, y, advance, sw_f, sh_f,
+            [0.70, 0.80, 0.92, 0.90],
+        );
+    }
+
+    // "Waiting for recovery..." footer at the bottom of the panel.
+    let footer_y = panel_y1 - advance * 1.5;
+    push_text(
+        &mut verts, &mut idxs, glyph_map, "waiting for recovery...",
+        panel_x0 + 16.0, footer_y, advance * 0.8, sw_f, sh_f,
+        [0.40, 0.55, 0.70, 0.60],
+    );
+
+    (verts, idxs)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -437,6 +582,25 @@ mod tests {
         let (verts, idxs) = build_hud_geometry(&m, 640, 480, Some("Test Slide"), "12:34:56");
         assert!(!verts.is_empty());
         assert!(!idxs.is_empty());
+    }
+
+    #[test]
+    fn build_hud_geometry_with_update_adds_center_footer_text() {
+        let m = test_glyph_map();
+        let (base_verts, base_idxs) =
+            build_hud_geometry(&m, 640, 480, Some("Test Slide"), "12:34:56");
+        let (updated_verts, updated_idxs) = build_hud_geometry_with_update(
+            &m,
+            640,
+            480,
+            Some("Test Slide"),
+            "12:34:56",
+            Some("UPDATED 12:34:56"),
+        );
+
+        assert!(updated_verts.len() > base_verts.len());
+        assert!(updated_idxs.len() > base_idxs.len());
+        assert!(updated_verts.iter().any(|v| v.color == COLOR_UPDATED));
     }
 
     #[test]

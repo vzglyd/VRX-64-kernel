@@ -9,6 +9,7 @@
 use std::time::Duration;
 
 use crate::Host;
+use crate::info::InfoState;
 use crate::lifecycle::SlideState;
 use crate::schedule::{Playlist, ResolvedSlideEntry, ScreensaverConfig, resolve_schedule_from_playlist};
 use crate::transition::{ActiveTransition, TransitionKind, TransitionState, resolve_transition};
@@ -37,6 +38,9 @@ pub struct FrameRenderState {
     /// Present when the screensaver is active. Hosts should suppress the normal
     /// HUD border and render the intermission scene instead.
     pub screensaver: Option<ScreensaverFrameState>,
+    /// Present when the information slide should be shown instead of normal content.
+    /// The host should render the info slide with the provided reason's message.
+    pub info: Option<crate::info::InfoReason>,
 }
 
 /// State passed to hosts when the screensaver is active.
@@ -186,6 +190,10 @@ pub struct Engine {
     screensaver_elapsed_secs: f32,
     /// Whether the screensaver is currently active.
     screensaver_active: bool,
+    /// Information slide state — when active, the info slide is shown instead of normal content.
+    info_state: InfoState,
+    /// Slides directory — used for info slide recovery polling.
+    slides_dir: Option<String>,
 }
 
 impl Default for Engine {
@@ -211,6 +219,8 @@ impl Engine {
             display_elapsed_secs: 0.0,
             screensaver_elapsed_secs: 0.0,
             screensaver_active: false,
+            info_state: InfoState::new(),
+            slides_dir: None,
         }
     }
 
@@ -282,6 +292,45 @@ impl Engine {
         self.display_elapsed_secs = 0.0;
         self.screensaver_elapsed_secs = 0.0;
         self.screensaver_active = false;
+    }
+
+    // ── Information slide ────────────────────────────────────────────────
+
+    /// Set the slides directory for recovery polling.
+    ///
+    /// Call this when using `--slides-dir` so the kernel can poll for
+    /// playlist.json appearance / validity while the info slide is shown.
+    pub fn set_slides_dir(&mut self, dir: &str) {
+        self.slides_dir = Some(dir.to_string());
+    }
+
+    /// Show the information slide with the given reason.
+    ///
+    /// The host should render the info slide instead of normal content until
+    /// [`Self::poll_info_recovery`] returns `true`.
+    pub fn show_info_slide(&mut self, reason: crate::info::InfoReason) {
+        self.info_state.show(reason);
+    }
+
+    /// Clear the information slide — normal playlist operation resumes.
+    pub fn clear_info_slide(&mut self) {
+        self.info_state.clear();
+    }
+
+    /// Poll for recovery when the info slide is active.
+    ///
+    /// Returns `true` if the underlying issue (e.g. missing playlist.json)
+    /// has been resolved and normal operation can resume.
+    pub fn poll_info_recovery(&mut self) -> bool {
+        let Some(slides_dir) = &self.slides_dir else {
+            return false;
+        };
+        self.info_state.poll_recovery(slides_dir)
+    }
+
+    /// Returns the current info reason, if the info slide is active.
+    pub fn info_reason(&self) -> Option<&crate::info::InfoReason> {
+        self.info_state.reason.as_ref()
     }
 
     /// Returns the current engine state.
@@ -563,6 +612,7 @@ impl Engine {
                 elapsed_secs,
                 total_slides: self.schedule.len(),
                 screensaver,
+                info: self.info_state.reason.clone(),
             },
             TransitionState::Blending(active) => {
                 let next_idx = if self.schedule.len() > 1 {
@@ -578,6 +628,7 @@ impl Engine {
                     elapsed_secs,
                     total_slides: self.schedule.len(),
                     screensaver,
+                    info: self.info_state.reason.clone(),
                 }
             }
         }

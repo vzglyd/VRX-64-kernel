@@ -30,3 +30,8 @@ wasmtime-wasi = { version = "16", optional = true }
 [features]
 default = []
 with-wasmtime = ["wasmtime", "wasmtime-wasi"]
+
+# Reduce build artifact sizes
+[profile.dev]
+debug = 0
+incremental = false
