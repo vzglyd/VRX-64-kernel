@@ -50,9 +50,7 @@ impl InfoReason {
             Self::InvalidPlaylist { error, .. } => {
                 format!("Invalid playlist.json: {}", error)
             }
-            Self::EmptyPlaylist { .. } => {
-                "No enabled slides in playlist".to_string()
-            }
+            Self::EmptyPlaylist { .. } => "No enabled slides in playlist".to_string(),
             Self::Alert { title, .. } => title.clone(),
         }
     }
@@ -134,7 +132,9 @@ impl InfoState {
                         | InfoReason::InvalidPlaylist { management_url, .. } = reason
                         {
                             let url = management_url.clone();
-                            *reason = InfoReason::EmptyPlaylist { management_url: url };
+                            *reason = InfoReason::EmptyPlaylist {
+                                management_url: url,
+                            };
                         }
                     }
                     false
@@ -225,6 +225,9 @@ mod tests {
     #[test]
     fn missing_playlist_primary_message() {
         let reason = missing_playlist_info("/my/slides", "http://0.0.0.0:8080");
-        assert_eq!(reason.primary_message(), "No playlist.json found in '/my/slides'");
+        assert_eq!(
+            reason.primary_message(),
+            "No playlist.json found in '/my/slides'"
+        );
     }
 }

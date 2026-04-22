@@ -549,9 +549,7 @@ fn validate_params_schema(schema: &ManifestParamsSchema) -> Result<(), ManifestV
         }
 
         if let Some(default) = &field.default {
-            if !field.options.is_empty()
-                && !field.options.iter().any(|o| o.value == *default)
-            {
+            if !field.options.is_empty() && !field.options.iter().any(|o| o.value == *default) {
                 return Err(ManifestValidationError::InvalidParamsSchema(format!(
                     "manifest.params.fields['{key}'].default must match one of the declared options"
                 )));

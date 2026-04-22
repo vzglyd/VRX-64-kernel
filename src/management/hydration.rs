@@ -6,10 +6,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::manifest::parse_transition_kind;
 use crate::manifest::{ManifestParamType, ManifestParamsSchema, SlideManifest};
 use crate::schedule::{PlaylistDefaults, PlaylistEntry};
 use crate::transition::TransitionKind;
-use crate::manifest::parse_transition_kind;
 
 /// A playlist entry combined with its resolved manifest metadata and validation results.
 ///
@@ -48,7 +48,8 @@ pub fn hydrate_entry(
     defaults: &PlaylistDefaults,
     engine_default_duration: f32,
 ) -> HydratedPlaylistEntry {
-    let resolved_duration_secs = resolve_duration(entry, defaults, manifest, engine_default_duration);
+    let resolved_duration_secs =
+        resolve_duration(entry, defaults, manifest, engine_default_duration);
     let resolved_transition_in = resolve_transition_in(entry, defaults, manifest);
     let resolved_transition_out = resolve_transition_out(entry, defaults, manifest);
     let param_errors = validate_params(
@@ -161,11 +162,7 @@ fn resolve_transition_in(
         .as_deref()
         .or(defaults.transition_in.as_deref())
         .or_else(|| {
-            manifest.and_then(|m| {
-                m.display
-                    .as_ref()
-                    .and_then(|d| d.transition_in.as_deref())
-            })
+            manifest.and_then(|m| m.display.as_ref().and_then(|d| d.transition_in.as_deref()))
         })
         .map(parse_transition_kind)
 }
@@ -180,11 +177,7 @@ fn resolve_transition_out(
         .as_deref()
         .or(defaults.transition_out.as_deref())
         .or_else(|| {
-            manifest.and_then(|m| {
-                m.display
-                    .as_ref()
-                    .and_then(|d| d.transition_out.as_deref())
-            })
+            manifest.and_then(|m| m.display.as_ref().and_then(|d| d.transition_out.as_deref()))
         })
         .map(parse_transition_kind)
 }

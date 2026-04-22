@@ -14,9 +14,9 @@ pub mod hydration;
 pub mod library;
 pub mod secrets;
 
+pub use crate::manifest::SoundAssetRef;
 pub use hydration::{
     ENGINE_DEFAULT_DURATION_SECS, HydratedPlaylistEntry, hydrate_entry, validate_params,
 };
 pub use library::SlideLibraryEntry;
 pub use secrets::{SECRETS_FILENAME, SecretsStore};
-pub use crate::manifest::SoundAssetRef;

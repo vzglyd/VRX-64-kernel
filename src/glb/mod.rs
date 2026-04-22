@@ -1146,7 +1146,7 @@ mod glb_animation_tests {
     fn make_animated_glb() -> Vec<u8> {
         // Minimal GLB 2.0 binary: JSON header + BIN chunk with vertex data + animation.
         // We construct it manually to keep the test self-contained.
-        
+
         // JSON: minimal glTF 2.0 with one mesh and one animation
         let json = r#"{
             "asset": {"version": "2.0"},
@@ -1185,15 +1185,16 @@ mod glb_animation_tests {
 
         // Vertex data: 3 vertices of a triangle (36 bytes)
         let vertices: Vec<u8> = vec![
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vertex 0: (0,0,0)
-            0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vertex 1: (1,0,0)
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, // vertex 2: (0,0,1)
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, // vertex 0: (0,0,0)
+            0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, // vertex 1: (1,0,0)
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+            0x3F, // vertex 2: (0,0,1)
         ];
 
         // Index data: 3 indices (6 bytes)
-        let indices: Vec<u8> = vec![
-            0x00, 0x00, 0x01, 0x00, 0x02, 0x00,
-        ];
+        let indices: Vec<u8> = vec![0x00, 0x00, 0x01, 0x00, 0x02, 0x00];
 
         // Animation keyframe times: [0.0, 1.0] (8 bytes)
         let anim_times: Vec<u8> = vec![
@@ -1248,21 +1249,26 @@ mod glb_animation_tests {
         let animations = extract_glb_animations(&gltf.document, &glb_data, &mut warnings);
 
         // Should have extracted one animation clip
-        assert_eq!(animations.len(), 1, "Expected one animation clip, got {}", animations.len());
-        
+        assert_eq!(
+            animations.len(),
+            1,
+            "Expected one animation clip, got {}",
+            animations.len()
+        );
+
         let clip = &animations[0];
         assert_eq!(clip.name, "MoveAction");
         assert!(clip.duration > 0.0, "Duration should be positive");
-        
+
         // Should have one channel
         assert!(!clip.channels.is_empty(), "Expected at least one channel");
-        
+
         let channel = &clip.channels[0];
         assert_eq!(channel.node_index, 0);
         assert!(matches!(channel.path, AnimationPath::Translation));
         assert_eq!(channel.keyframe_times.len(), 2);
         assert_eq!(channel.keyframe_values.len(), 2);
-        
+
         // Warnings may contain parsing notes but shouldn't prevent extraction
     }
 
@@ -1273,7 +1279,7 @@ mod glb_animation_tests {
         let mut warnings = Vec::new();
 
         let animations = extract_glb_animations(&gltf.document, &glb_data, &mut warnings);
-        
+
         // Should still extract the animation since node index 0 has the "Cube" mesh
         assert_eq!(animations.len(), 1);
     }

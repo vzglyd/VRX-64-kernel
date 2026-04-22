@@ -50,7 +50,7 @@ pub enum LifecycleEvent {
     /// Slide update with delta time.
     Update {
         /// Delta time for the update.
-        dt: f32
+        dt: f32,
     },
     /// Slide should be parked.
     Park,

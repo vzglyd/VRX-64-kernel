@@ -84,45 +84,49 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
+pub mod audio;
 pub mod glb;
 pub mod info;
 pub mod kernel;
-pub mod management;
-pub mod overlay;
 pub mod lifecycle;
-pub mod schedule;
+pub mod management;
 pub mod manifest;
+pub mod overlay;
+pub mod schedule;
 pub mod shader;
 pub mod trace;
 pub mod transition;
 pub mod types;
-pub mod audio;
 
 // Re-export main types
+pub use audio::{SoundDesc, SoundFormat};
 pub use types::{
     BufferHandle, BufferUsage, DataRequest, EngineInput, EngineOutput, EngineState, Host,
-    InputEvent, LogLevel, PipelineKind, RenderCommand, SamplerHandle, TextureFormat,
-    TextureHandle,
+    InputEvent, LogLevel, PipelineKind, RenderCommand, SamplerHandle, TextureFormat, TextureHandle,
 };
-pub use audio::{SoundDesc, SoundFormat};
 
 // Re-export main engine types
-pub use kernel::{Engine, EngineConfig, FrameRenderState, ScreensaverFrameState, SlideEntry, SlideManifestMetadata};
+pub use kernel::{
+    Engine, EngineConfig, FrameRenderState, ScreensaverFrameState, SlideEntry,
+    SlideManifestMetadata,
+};
 pub use transition::TransitionKind;
 
 // Re-export overlay types
 pub use overlay::{
     BORDER_PX, COLOR_BORDER, COLOR_CLOCK, COLOR_FOOTER_BG, COLOR_TITLE, COLOR_UPDATED, FOOTER_PX,
     GLYPH_SIZE, OverlayVertex, TEXT_MARGIN_PX, TEXT_SCALE, build_font_atlas_pixels,
-    build_hud_geometry, build_hud_geometry_with_update, build_info_geometry, build_screensaver_geometry,
-    normalize_text,
+    build_hud_geometry, build_hud_geometry_with_update, build_info_geometry,
+    build_screensaver_geometry, normalize_text,
 };
 
 // Re-export schedule types
 pub use schedule::ScreensaverConfig;
 
 // Re-export info slide types
-pub use info::{InfoReason, InfoState, empty_playlist_info, invalid_playlist_info, missing_playlist_info};
+pub use info::{
+    InfoReason, InfoState, empty_playlist_info, invalid_playlist_info, missing_playlist_info,
+};
 
 // Re-export management types
 pub use management::{

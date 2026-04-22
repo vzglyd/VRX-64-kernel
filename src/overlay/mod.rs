@@ -233,10 +233,50 @@ pub fn build_hud_geometry_with_update(
     }
 
     // 5. Border strips (drawn last — on top of everything)
-    push_solid(&mut verts, &mut idxs, 0.0, 0.0, sw, BORDER_PX, sw, sh, COLOR_BORDER);
-    push_solid(&mut verts, &mut idxs, 0.0, sh - BORDER_PX, sw, sh, sw, sh, COLOR_BORDER);
-    push_solid(&mut verts, &mut idxs, 0.0, 0.0, BORDER_PX, sh, sw, sh, COLOR_BORDER);
-    push_solid(&mut verts, &mut idxs, sw - BORDER_PX, 0.0, sw, sh, sw, sh, COLOR_BORDER);
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        0.0,
+        0.0,
+        sw,
+        BORDER_PX,
+        sw,
+        sh,
+        COLOR_BORDER,
+    );
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        0.0,
+        sh - BORDER_PX,
+        sw,
+        sh,
+        sw,
+        sh,
+        COLOR_BORDER,
+    );
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        0.0,
+        0.0,
+        BORDER_PX,
+        sh,
+        sw,
+        sh,
+        COLOR_BORDER,
+    );
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        sw - BORDER_PX,
+        0.0,
+        sw,
+        sh,
+        sw,
+        sh,
+        COLOR_BORDER,
+    );
 
     (verts, idxs)
 }
@@ -279,7 +319,17 @@ pub fn build_screensaver_geometry(
     let drift_y_ndc = (elapsed_secs * 0.05).cos() * 0.04;
 
     // 1. Full-screen opaque black background.
-    push_solid(&mut verts, &mut idxs, 0.0, 0.0, sw_f, sh_f, sw_f, sh_f, [0.0, 0.0, 0.0, 1.0]);
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        0.0,
+        0.0,
+        sw_f,
+        sh_f,
+        sw_f,
+        sh_f,
+        [0.0, 0.0, 0.0, 1.0],
+    );
 
     // 2. "Intermission" heading — centered at 40% down the screen.
     const TITLE_SCALE: f32 = 3.0; // 3× → 24 px tall glyphs
@@ -395,10 +445,34 @@ fn push_solid(
     let ny1 = px_to_ndc_y(y1, sh);
     let base = verts.len() as u16;
     verts.extend_from_slice(&[
-        OverlayVertex { position: [nx0, ny0], uv: [0.0, 0.0], color, mode: MODE_SOLID, _pad: [0.0] },
-        OverlayVertex { position: [nx1, ny0], uv: [0.0, 0.0], color, mode: MODE_SOLID, _pad: [0.0] },
-        OverlayVertex { position: [nx1, ny1], uv: [0.0, 0.0], color, mode: MODE_SOLID, _pad: [0.0] },
-        OverlayVertex { position: [nx0, ny1], uv: [0.0, 0.0], color, mode: MODE_SOLID, _pad: [0.0] },
+        OverlayVertex {
+            position: [nx0, ny0],
+            uv: [0.0, 0.0],
+            color,
+            mode: MODE_SOLID,
+            _pad: [0.0],
+        },
+        OverlayVertex {
+            position: [nx1, ny0],
+            uv: [0.0, 0.0],
+            color,
+            mode: MODE_SOLID,
+            _pad: [0.0],
+        },
+        OverlayVertex {
+            position: [nx1, ny1],
+            uv: [0.0, 0.0],
+            color,
+            mode: MODE_SOLID,
+            _pad: [0.0],
+        },
+        OverlayVertex {
+            position: [nx0, ny1],
+            uv: [0.0, 0.0],
+            color,
+            mode: MODE_SOLID,
+            _pad: [0.0],
+        },
     ]);
     idxs.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
 }
@@ -436,10 +510,34 @@ fn push_text(
         let base = verts.len() as u16;
         // TL, TR, BR, BL — UV v-axis matches pixel y-axis (v0=top, v1=bottom)
         verts.extend_from_slice(&[
-            OverlayVertex { position: [nx0, ny0], uv: [u0, v0], color, mode: MODE_FONT, _pad: [0.0] },
-            OverlayVertex { position: [nx1, ny0], uv: [u1, v0], color, mode: MODE_FONT, _pad: [0.0] },
-            OverlayVertex { position: [nx1, ny1], uv: [u1, v1], color, mode: MODE_FONT, _pad: [0.0] },
-            OverlayVertex { position: [nx0, ny1], uv: [u0, v1], color, mode: MODE_FONT, _pad: [0.0] },
+            OverlayVertex {
+                position: [nx0, ny0],
+                uv: [u0, v0],
+                color,
+                mode: MODE_FONT,
+                _pad: [0.0],
+            },
+            OverlayVertex {
+                position: [nx1, ny0],
+                uv: [u1, v0],
+                color,
+                mode: MODE_FONT,
+                _pad: [0.0],
+            },
+            OverlayVertex {
+                position: [nx1, ny1],
+                uv: [u1, v1],
+                color,
+                mode: MODE_FONT,
+                _pad: [0.0],
+            },
+            OverlayVertex {
+                position: [nx0, ny1],
+                uv: [u0, v1],
+                color,
+                mode: MODE_FONT,
+                _pad: [0.0],
+            },
         ]);
         idxs.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
     }
@@ -488,16 +586,63 @@ pub fn build_info_geometry(
 
     // Subtle panel border.
     let border_w = 2.0;
-    push_solid(&mut verts, &mut idxs, panel_x0, panel_y0, panel_x1, panel_y0 + border_w, sw_f, sh_f, COLOR_BORDER);
-    push_solid(&mut verts, &mut idxs, panel_x0, panel_y1 - border_w, panel_x1, panel_y1, sw_f, sh_f, COLOR_BORDER);
-    push_solid(&mut verts, &mut idxs, panel_x0, panel_y0, panel_x0 + border_w, panel_y1, sw_f, sh_f, COLOR_BORDER);
-    push_solid(&mut verts, &mut idxs, panel_x1 - border_w, panel_y0, panel_x1, panel_y1, sw_f, sh_f, COLOR_BORDER);
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        panel_x0,
+        panel_y0,
+        panel_x1,
+        panel_y0 + border_w,
+        sw_f,
+        sh_f,
+        COLOR_BORDER,
+    );
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        panel_x0,
+        panel_y1 - border_w,
+        panel_x1,
+        panel_y1,
+        sw_f,
+        sh_f,
+        COLOR_BORDER,
+    );
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        panel_x0,
+        panel_y0,
+        panel_x0 + border_w,
+        panel_y1,
+        sw_f,
+        sh_f,
+        COLOR_BORDER,
+    );
+    push_solid(
+        &mut verts,
+        &mut idxs,
+        panel_x1 - border_w,
+        panel_y0,
+        panel_x1,
+        panel_y1,
+        sw_f,
+        sh_f,
+        COLOR_BORDER,
+    );
 
     // "VZGLYD" header label.
     let header_y = panel_y0 + 24.0;
     push_text(
-        &mut verts, &mut idxs, glyph_map, "VZGLYD",
-        panel_x0 + 16.0, header_y, advance, sw_f, sh_f,
+        &mut verts,
+        &mut idxs,
+        glyph_map,
+        "VZGLYD",
+        panel_x0 + 16.0,
+        header_y,
+        advance,
+        sw_f,
+        sh_f,
         [0.30, 0.75, 0.92, 0.70],
     );
 
@@ -509,8 +654,15 @@ pub fn build_info_geometry(
         let title_width = char_count as f32 * advance * 1.5;
         let title_x = ((sw_f - title_width) / 2.0).max(panel_x0 + 16.0);
         push_text_scaled(
-            &mut verts, &mut idxs, glyph_map, &title_text,
-            title_x, title_y, advance * 1.5, sw_f, sh_f,
+            &mut verts,
+            &mut idxs,
+            glyph_map,
+            &title_text,
+            title_x,
+            title_y,
+            advance * 1.5,
+            sw_f,
+            sh_f,
             [0.95, 0.95, 1.0, 1.0],
         );
     }
@@ -528,8 +680,15 @@ pub fn build_info_geometry(
             break; // Don't overflow the panel.
         }
         push_text(
-            &mut verts, &mut idxs, glyph_map, &detail_text,
-            detail_x, y, advance, sw_f, sh_f,
+            &mut verts,
+            &mut idxs,
+            glyph_map,
+            &detail_text,
+            detail_x,
+            y,
+            advance,
+            sw_f,
+            sh_f,
             [0.70, 0.80, 0.92, 0.90],
         );
     }
@@ -537,8 +696,15 @@ pub fn build_info_geometry(
     // "Waiting for recovery..." footer at the bottom of the panel.
     let footer_y = panel_y1 - advance * 1.5;
     push_text(
-        &mut verts, &mut idxs, glyph_map, "waiting for recovery...",
-        panel_x0 + 16.0, footer_y, advance * 0.8, sw_f, sh_f,
+        &mut verts,
+        &mut idxs,
+        glyph_map,
+        "waiting for recovery...",
+        panel_x0 + 16.0,
+        footer_y,
+        advance * 0.8,
+        sw_f,
+        sh_f,
         [0.40, 0.55, 0.70, 0.60],
     );
 
@@ -636,14 +802,20 @@ mod tests {
         let sw = 640u32;
         let (verts, _) = build_hud_geometry(&m, sw, sh, None, "00:00:00");
 
-        let min_y = verts.iter().map(|v| v.position[1]).fold(f32::INFINITY, f32::min);
+        let min_y = verts
+            .iter()
+            .map(|v| v.position[1])
+            .fold(f32::INFINITY, f32::min);
         assert!((min_y - (-1.0)).abs() < 1e-5, "footer bottom y = {min_y}");
 
         let footer_top_ndc = 1.0 - 2.0 * (sh as f32 - FOOTER_PX) / sh as f32;
         let has_footer_top = verts
             .iter()
             .any(|v| (v.position[1] - footer_top_ndc).abs() < 1e-4);
-        assert!(has_footer_top, "no vertex at footer top ndc={footer_top_ndc}");
+        assert!(
+            has_footer_top,
+            "no vertex at footer top ndc={footer_top_ndc}"
+        );
     }
 
     #[test]
@@ -679,7 +851,11 @@ mod tests {
         // The first quad should be at the full NDC range (solid black background).
         let first_four: Vec<_> = verts.iter().take(4).collect();
         for v in &first_four {
-            assert_eq!(v.color, [0.0, 0.0, 0.0, 1.0], "background should be opaque black");
+            assert_eq!(
+                v.color,
+                [0.0, 0.0, 0.0, 1.0],
+                "background should be opaque black"
+            );
         }
     }
 

@@ -11,7 +11,9 @@ use std::time::Duration;
 use crate::Host;
 use crate::info::InfoState;
 use crate::lifecycle::SlideState;
-use crate::schedule::{Playlist, ResolvedSlideEntry, ScreensaverConfig, resolve_schedule_from_playlist};
+use crate::schedule::{
+    Playlist, ResolvedSlideEntry, ScreensaverConfig, resolve_schedule_from_playlist,
+};
 use crate::transition::{ActiveTransition, TransitionKind, TransitionState, resolve_transition};
 use crate::types::{EngineInput, EngineOutput, EngineState, InputEvent, LogLevel, RenderCommand};
 
@@ -106,6 +108,8 @@ pub struct SlideManifestMetadata {
 pub struct SlideEntry {
     /// Path to the slide.
     pub path: String,
+    /// Optional watched JSON file resolved by the host.
+    pub data_path: Option<String>,
     /// Duration in seconds.
     pub duration_secs: f32,
     /// Transition-in kind.
@@ -126,6 +130,7 @@ impl SlideEntry {
     pub fn new(path: String, duration_secs: f32) -> Self {
         Self {
             path,
+            data_path: None,
             duration_secs,
             transition_in: None,
             transition_out: None,
@@ -139,6 +144,7 @@ impl SlideEntry {
     fn from_resolved(entry: ResolvedSlideEntry) -> Self {
         Self {
             path: entry.path,
+            data_path: entry.data_path,
             duration_secs: entry.duration_secs,
             transition_in: entry.transition_in,
             transition_out: entry.transition_out,
@@ -594,11 +600,14 @@ impl Engine {
         let elapsed_secs = current.map(|s| s.elapsed_secs).unwrap_or(0.0);
 
         let screensaver = if self.screensaver_active {
-            self.screensaver_config.as_ref().map(|cfg| ScreensaverFrameState {
-                remaining_secs: (cfg.duration_seconds as f32 - self.screensaver_elapsed_secs).max(0.0),
-                total_secs: cfg.duration_seconds as f32,
-                elapsed_secs: self.screensaver_elapsed_secs,
-            })
+            self.screensaver_config
+                .as_ref()
+                .map(|cfg| ScreensaverFrameState {
+                    remaining_secs: (cfg.duration_seconds as f32 - self.screensaver_elapsed_secs)
+                        .max(0.0),
+                    total_secs: cfg.duration_seconds as f32,
+                    elapsed_secs: self.screensaver_elapsed_secs,
+                })
         } else {
             None
         };
@@ -714,12 +723,24 @@ mod tests {
         let mut host = TestHost;
 
         // Advance just under the timeout — screensaver should not be active.
-        engine.update(&mut host, EngineInput { dt: 4.9, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 4.9,
+                events: vec![],
+            },
+        );
         assert!(!engine.is_screensaver_active());
         assert!(engine.frame_state().screensaver.is_none());
 
         // Push past the timeout.
-        engine.update(&mut host, EngineInput { dt: 0.2, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 0.2,
+                events: vec![],
+            },
+        );
         assert!(engine.is_screensaver_active());
         let ss = engine.frame_state().screensaver.expect("screensaver state");
         assert!(ss.remaining_secs <= 10.0);
@@ -739,11 +760,23 @@ mod tests {
         let mut host = TestHost;
 
         // Trigger screensaver.
-        engine.update(&mut host, EngineInput { dt: 1.1, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 1.1,
+                events: vec![],
+            },
+        );
         assert!(engine.is_screensaver_active());
 
         // Advance through the screensaver duration.
-        engine.update(&mut host, EngineInput { dt: 3.1, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 3.1,
+                events: vec![],
+            },
+        );
         assert!(!engine.is_screensaver_active());
         assert!(engine.frame_state().screensaver.is_none());
     }
@@ -761,15 +794,33 @@ mod tests {
         let mut host = TestHost;
 
         // Advance 2 seconds normally.
-        engine.update(&mut host, EngineInput { dt: 2.0, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 2.0,
+                events: vec![],
+            },
+        );
         let elapsed_before = engine.slide_entry(0).unwrap().elapsed_secs;
 
         // Trigger screensaver.
-        engine.update(&mut host, EngineInput { dt: 0.1, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 0.1,
+                events: vec![],
+            },
+        );
         assert!(engine.is_screensaver_active());
 
         // During screensaver, slide elapsed should not advance.
-        engine.update(&mut host, EngineInput { dt: 1.0, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 1.0,
+                events: vec![],
+            },
+        );
         let elapsed_during = engine.slide_entry(0).unwrap().elapsed_secs;
         assert!(
             (elapsed_during - elapsed_before).abs() < 0.01,
@@ -785,7 +836,13 @@ mod tests {
 
         let mut host = TestHost;
         // Advance a lot — no screensaver config, should never activate.
-        engine.update(&mut host, EngineInput { dt: 9999.0, events: vec![] });
+        engine.update(
+            &mut host,
+            EngineInput {
+                dt: 9999.0,
+                events: vec![],
+            },
+        );
         assert!(!engine.is_screensaver_active());
         assert!(engine.frame_state().screensaver.is_none());
     }
@@ -824,6 +881,7 @@ mod tests {
         let mut engine = Engine::new();
         engine.set_resolved_schedule(vec![ResolvedSlideEntry {
             path: "clock.vzglyd".into(),
+            data_path: Some("slides/data/weather.out.json".into()),
             duration_secs: 20.0,
             transition_in: Some(TransitionKind::Crossfade),
             transition_out: None,
@@ -840,6 +898,10 @@ mod tests {
         );
 
         let entry = engine.slide_entry(0).expect("slide entry");
+        assert_eq!(
+            entry.data_path.as_deref(),
+            Some("slides/data/weather.out.json")
+        );
         assert_eq!(entry.duration_secs, 20.0);
         assert_eq!(entry.transition_in, Some(TransitionKind::Crossfade));
         assert_eq!(entry.transition_out, Some(TransitionKind::Cut));

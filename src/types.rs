@@ -174,7 +174,6 @@ pub enum RenderCommand {
 
     /// Destroy a buffer resource
     DestroyBuffer(BufferHandle),
-
 }
 
 /// Pipeline kind (opaque vs transparent)
@@ -289,7 +288,7 @@ pub enum InputEvent {
         key: String,
         /// The data that was requested
         data: Vec<u8>,
-    }
+    },
 }
 
 /// Output from the engine update loop
